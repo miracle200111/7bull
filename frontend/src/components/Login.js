@@ -70,16 +70,47 @@ function Login({ onLogin }) {
   };
 
   return (
-    <Container maxWidth="sm">
-      <Box
-        sx={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}
-      >
-        <Paper elevation={3} sx={{ width: '100%', maxWidth: 400 }}>
+    <Box sx={{
+      width: '100vw',
+      height: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 25%, #16213e 50%, #0f3460 75%, #1e3a8a 100%)',
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* 背景装饰 */}
+      <Box sx={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: `
+          radial-gradient(circle at 20% 20%, rgba(102, 126, 234, 0.1) 0%, transparent 50%),
+          radial-gradient(circle at 80% 80%, rgba(118, 75, 162, 0.1) 0%, transparent 50%)
+        `,
+        animation: 'backgroundFloat 8s ease-in-out infinite',
+        '@keyframes backgroundFloat': {
+          '0%, 100%': { transform: 'scale(1) rotate(0deg)' },
+          '50%': { transform: 'scale(1.1) rotate(180deg)' }
+        }
+      }} />
+      
+      <Container maxWidth="sm">
+        <Paper 
+          elevation={0}
+          sx={{ 
+            width: '100%', 
+            maxWidth: 450,
+            mx: 'auto',
+            background: 'rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            borderRadius: 3
+          }}
+        >
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
             <Tabs value={tabValue} onChange={handleTabChange} centered>
               <Tab label="登录" />
@@ -88,11 +119,31 @@ function Login({ onLogin }) {
           </Box>
 
           <TabPanel value={tabValue} index={0}>
-            <Typography variant="h4" align="center" gutterBottom>
+            <Typography 
+              variant="h3" 
+              align="center" 
+              gutterBottom
+              sx={{
+                fontWeight: 800,
+                background: 'linear-gradient(45deg, #667eea, #764ba2)',
+                backgroundClip: 'text',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                mb: 1
+              }}
+            >
               AI角色扮演
             </Typography>
-            <Typography variant="body2" align="center" color="text.secondary" sx={{ mb: 3 }}>
-              与历史人物和虚拟角色对话
+            <Typography 
+              variant="body1" 
+              align="center" 
+              sx={{ 
+                mb: 4,
+                color: 'rgba(255,255,255,0.8)',
+                fontWeight: 400
+              }}
+            >
+              与历史人物、F1车手和超级英雄对话
             </Typography>
             
             {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
@@ -176,8 +227,8 @@ function Login({ onLogin }) {
             </form>
           </TabPanel>
         </Paper>
-      </Box>
-    </Container>
+      </Container>
+    </Box>
   );
 }
 

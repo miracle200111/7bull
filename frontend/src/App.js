@@ -1,22 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { Box, Container } from '@mui/material';
+import { Box } from '@mui/material';
 import Login from './components/Login';
 import Dashboard from './components/Dashboard';
 import Chat from './components/Chat';
+import { theme } from './theme';
 import './App.css';
-
-const theme = createTheme({
-  palette: {
-    primary: {
-      main: '#1976d2',
-    },
-    secondary: {
-      main: '#dc004e',
-    },
-  },
-});
 
 function App() {
   const [user, setUser] = useState(null);
@@ -64,22 +54,27 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ minHeight: '100vh', backgroundColor: '#f5f5f5' }}>
-        <Container maxWidth="lg">
-          {currentView === 'dashboard' && (
-            <Dashboard 
-              onLogout={handleLogout}
-              onCharacterSelect={handleCharacterSelect}
-            />
-          )}
-          {currentView === 'chat' && selectedCharacter && (
-            <Chat 
-              character={selectedCharacter}
-              onBack={handleBackToDashboard}
-              token={user.token}
-            />
-          )}
-        </Container>
+      <Box sx={{ 
+        width: '100vw',
+        height: '100vh',
+        overflow: 'hidden',
+        position: 'fixed',
+        top: 0,
+        left: 0
+      }}>
+        {currentView === 'dashboard' && (
+          <Dashboard 
+            onLogout={handleLogout}
+            onCharacterSelect={handleCharacterSelect}
+          />
+        )}
+        {currentView === 'chat' && selectedCharacter && (
+          <Chat 
+            character={selectedCharacter}
+            onBack={handleBackToDashboard}
+            token={user.token}
+          />
+        )}
       </Box>
     </ThemeProvider>
   );
