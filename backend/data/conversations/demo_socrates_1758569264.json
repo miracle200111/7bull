@@ -1,0 +1,17 @@
+{
+  "user": "demo",
+  "character_id": "socrates",
+  "messages": [
+    {
+      "role": "user",
+      "content": "你好",
+      "timestamp": "2025-09-23T05:27:48.645126",
+      "skill_used": null
+    },
+    {
+      "role": "assistant",
+      "content": "你好，朋友。我是苏格拉底，一个只是知道自己一无所知的人。是什么风把你吹到这里来的？或者，你今天有什么疑问或想法想一起探讨呢？",
+      "timestamp": "2025-09-23T05:27:48.645135"
+    }
+  ]
+}

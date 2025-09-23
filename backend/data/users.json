@@ -10,5 +10,11 @@
     "password": "$2b$12$bbp7Susak7ZMqHHnFCPG4.EXshpI77j9FSu1N4RYlbFPKI3T3KaDe",
     "created_at": "2025-09-22T12:58:13.835177",
     "conversations": []
+  },
+  "demo": {
+    "email": "demo@test.com",
+    "password": "$2b$12$bUA4JT6BAADBy4ovQKmcTeqKeVyVLiXcw4FcrarGSABT0cRSrEIX6",
+    "created_at": "2025-09-23T05:27:44.147110",
+    "conversations": []
   }
 }
