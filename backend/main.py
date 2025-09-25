@@ -10,6 +10,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 import openai
 from dotenv import load_dotenv
+from race_strategy import f1_ai
 
 load_dotenv()
 
@@ -62,10 +63,45 @@ class ChatRequest(BaseModel):
     character_id: str
     message: str
     conversation_id: Optional[str] = None
+    race_context: Optional[dict] = None  # 比赛上下文信息
 
 class ChatResponse(BaseModel):
     response: str
     conversation_id: str
+    race_action: Optional[str] = None  # 比赛相关动作
+
+class RaceSimulationRequest(BaseModel):
+    team_id: str
+    race_id: str
+    phase: str
+    progress: float
+
+class TeamCommunicationRequest(BaseModel):
+    team_id: str
+    driver_id: str
+    message_type: str  # instruction, question, update
+
+class StrategyAnalysisRequest(BaseModel):
+    weather: str
+    trackTemp: int
+    raceLength: int
+    circuit: str
+    gridOrder: List[dict]
+    currentStrategies: List[dict]
+
+class DriverResponseRequest(BaseModel):
+    message: str
+    driverId: str
+    driverName: str
+    teamContext: dict
+    raceContext: dict
+
+class LLMStrategyRequest(BaseModel):
+    context: dict
+    currentLap: int
+    weather: dict
+    classification: List[dict]
+    phase: str
 
 # Data storage paths
 DATA_DIR = "data"
@@ -463,6 +499,89 @@ async def get_conversations(current_user: str = Depends(get_current_user)):
                 })
     
     return sorted(conversations, key=lambda x: x["timestamp"], reverse=True)
+
+@app.post("/race/simulate")
+async def simulate_race_communication(request: RaceSimulationRequest, current_user: str = Depends(get_current_user)):
+    """模拟比赛中的车队通讯"""
+    if not openai_client:
+        raise HTTPException(status_code=500, detail="LLM API not configured")
+    
+    try:
+        # 根据比赛阶段生成车队通讯
+        race_context = f"""
+        比赛: {request.race_id}
+        车队: {request.team_id}
+        阶段: {request.phase}
+        进度: {request.progress}%
+        """
+        
+        prompt = f"""你是F1比赛中的车队无线电通讯系统。当前比赛情况：
+        {race_context}
+        
+        请生成真实的车队与车手之间的无线电对话，包括：
+        1. 车队给车手的指令
+        2. 车手向车队的反馈
+        3. 战术讨论
+        4. 比赛状况更新
+        
+        请用中文回复，保持F1比赛的紧张感和专业性。"""
+        
+        response = openai_client.chat.completions.create(
+            model="x-ai/grok-4-fast",
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": f"生成当前阶段的车队通讯内容"}
+            ],
+            max_tokens=300,
+            temperature=0.8
+        )
+        
+        return {"communication": response.choices[0].message.content}
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating race communication: {str(e)}")
+
+@app.post("/team/instruction")
+async def send_team_instruction(request: TeamCommunicationRequest, current_user: str = Depends(get_current_user)):
+    """发送车队指令给车手"""
+    if not openai_client:
+        raise HTTPException(status_code=500, detail="LLM API not configured")
+    
+    driver_character = CHARACTERS.get(request.driver_id)
+    if not driver_character:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    
+    try:
+        # 构建比赛上下文的提示词
+        race_prompt = f"""
+        {driver_character['prompt']}
+        
+        当前你正在参加F1比赛，比赛情况：
+        车队: {request.team_id}
+        消息类型: {request.message_type}
+        比赛上下文: {request.context}
+        
+        请以F1车手的身份，在比赛中通过无线电回应车队的指令或问题。
+        保持简洁、专业，符合F1比赛中的真实通讯风格。
+        """
+        
+        response = openai_client.chat.completions.create(
+            model="x-ai/grok-4-fast",
+            messages=[
+                {"role": "system", "content": race_prompt},
+                {"role": "user", "content": f"车队消息: {request.context.get('message', '')}"}
+            ],
+            max_tokens=200,
+            temperature=0.7
+        )
+        
+        return {
+            "driver_response": response.choices[0].message.content,
+            "driver_name": driver_character["name"]
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating team communication: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

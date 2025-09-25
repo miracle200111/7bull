@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>F1 Demo — Animate Car on Your Path</title>
+<style>
+  body{margin:0;background:#0b0d10;color:#eaeaea;font-family:system-ui,-apple-system,Segoe UI,Roboto}
+  .wrap{display:grid;grid-template-columns:360px 1fr;gap:16px;padding:16px}
+  .panel{background:#151a1f;border:1px solid #2a2f37;border-radius:12px;padding:12px}
+  label{display:block;margin-top:8px;font-size:12px;opacity:.85}
+  input[type="range"]{width:100%}
+  button{background:#2b86ff;border:none;color:#fff;border-radius:8px;padding:8px 12px;cursor:pointer}
+  button.secondary{background:#2a2f37}
+  .stage{position:relative;overflow:hidden;border:1px solid #2a2f37;border-radius:14px;background:#0e1116}
+  .bg{position:absolute;inset:0;background-position:center;background-repeat:no-repeat;background-size:contain;opacity:.98}
+  svg{position:relative;display:block}
+  .stat{font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel">
+    <h2 style="margin:6px 0 10px;font-size:18px">设置</h2>
+    <label>背景图 URL（PNG/JPG，确保浏览器可解码）</label>
+    <input id="bgUrl" placeholder="https://example.com/track.png" style="width:100%;border-radius:8px;border:1px solid #2a2f37;background:#0f1318;color:#eaeaea;padding:8px" />
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <input id="w" type="number" value="1200" style="width:100px;border-radius:8px;border:1px solid #2a2f37;background:#0f1318;color:#eaeaea;padding:8px"/><span>×</span>
+      <input id="h" type="number" value="800" style="width:100px;border-radius:8px;border:1px solid #2a2f37;background:#0f1318;color:#eaeaea;padding:8px"/>
+      <button id="apply" class="secondary">应用</button>
+    </div>
+    <label>直线最高速度（px/s） <span id="vmaxv" class="stat">520</span></label>
+    <input id="vmax" type="range" min="100" max="1500" step="10" value="520"/>
+    <label>弯道减速强度 <span id="kvv" class="stat">1200</span></label>
+    <input id="kv" type="range" min="100" max="4000" step="50" value="1200"/>
+    <label>闭合路径？ <input id="closed" type="checkbox" checked /></label>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button id="toggle">暂停</button>
+      <button id="export" class="secondary">导出当前 path</button>
+    </div>
+    <p class="stat" style="opacity:.9;margin-top:10px">Lap: <span id="lap">0</span> | t: <span id="lapT">0.00</span>s | L: <span id="len">0</span></p>
+  </div>
+
+  <div class="panel stage">
+    <div id="bg" class="bg"></div>
+    <svg id="svg" width="1200" height="800" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid meet">
+      <path id="track-path" d="M 367.22,680.88 C 336.42,678.98 319.86,679.90 315.11,679.86 C 310.36,679.83 288.16,678.76 283.77,678.67 C 279.38,678.57 264.77,679.08 262.42,678.73 C 260.07,678.39 256.22,675.28 255.60,674.52 C 254.99,673.76 255.02,670.36 255.05,669.61 C 255.08,668.86 255.40,666.16 256.00,665.53 C 256.60,664.90 260.58,664.02 262.24,662.05 C 263.90,660.07 274.01,644.58 275.93,641.83 C 277.85,639.08 283.87,630.87 285.27,629.02 C 286.66,627.16 292.05,620.86 292.66,619.57 C 293.28,618.27 292.58,614.44 292.66,613.48 C 292.75,612.52 293.99,609.89 293.71,608.02 C 293.44,606.14 290.42,594.40 289.36,591.01 C 288.29,587.63 282.18,571.08 280.93,567.39 C 279.67,563.69 275.05,549.80 274.27,546.64 C 273.50,543.47 271.62,532.26 271.59,529.41 C 271.57,526.55 273.66,515.70 273.98,512.40 C 274.29,509.11 275.01,493.67 275.35,489.84 C 275.69,486.01 277.24,471.48 278.07,466.44 C 278.91,461.39 284.28,435.70 285.37,429.29 C 286.47,422.88 290.01,396.50 291.20,389.55 C 292.40,382.60 298.28,353.83 299.69,345.87 C 301.09,337.92 306.97,301.98 308.05,294.09 C 309.14,286.19 311.84,258.38 312.68,251.11 C 313.53,243.84 317.29,213.46 318.23,206.88 C 319.17,200.31 323.33,177.11 323.96,172.23 C 324.59,167.35 325.23,151.67 325.75,148.34 C 326.26,145.01 329.59,134.36 330.17,132.29 C 330.75,130.22 332.48,124.53 332.69,123.46 C 332.90,122.40 331.90,120.30 332.69,119.53 C 333.48,118.75 340.40,115.10 342.19,114.14 C 343.98,113.17 352.80,108.37 354.17,107.96 C 355.54,107.54 357.30,109.03 358.60,109.13 C 359.90,109.23 368.23,108.04 369.77,109.13 C 371.31,110.23 374.81,119.85 377.07,122.27 C 379.34,124.68 393.86,135.12 396.94,138.08 C 400.03,141.04 411.06,154.37 414.09,157.80 C 417.11,161.23 429.88,175.65 433.27,179.21 C 436.65,182.77 452.19,197.98 454.71,200.50 C 457.24,203.02 461.81,207.75 463.61,209.46 C 465.41,211.16 474.26,219.40 476.32,220.97 C 478.37,222.54 485.40,226.64 488.26,228.31 C 491.11,229.99 506.33,239.02 510.58,241.05 C 514.83,243.09 536.14,251.05 539.25,252.78 C 542.37,254.52 546.45,259.75 547.97,261.88 C 549.49,264.01 556.54,275.48 557.48,278.36 C 558.42,281.24 559.38,293.07 559.24,296.45 C 559.09,299.84 555.98,314.58 555.75,319.01 C 555.51,323.45 555.29,345.29 556.46,349.68 C 557.64,354.07 566.84,368.36 569.81,371.71 C 572.78,375.07 589.05,387.36 592.09,389.98 C 595.12,392.60 603.14,400.53 606.21,403.19 C 609.27,405.85 625.68,419.25 628.89,421.86 C 632.10,424.47 641.82,432.52 644.68,434.52 C 647.54,436.51 660.59,443.97 663.21,445.86 C 665.83,447.74 674.16,455.77 676.08,457.16 C 677.99,458.55 684.98,461.38 686.19,462.57 C 687.40,463.75 690.24,469.84 690.61,471.35 C 690.98,472.85 691.14,479.37 690.61,480.64 C 690.08,481.91 685.27,486.00 684.22,486.55 C 683.17,487.10 679.43,487.20 678.00,487.26 C 676.56,487.32 669.61,487.49 667.04,487.26 C 664.47,487.03 651.42,484.99 647.12,484.50 C 642.82,484.01 622.47,482.10 615.48,481.38 C 608.49,480.66 573.13,477.00 563.28,475.87 C 553.43,474.73 506.32,468.73 497.25,467.78 C 488.17,466.83 459.25,464.68 454.43,464.46 C 449.60,464.23 441.27,464.98 439.38,465.06 C 437.48,465.15 433.45,465.06 431.70,465.48 C 429.94,465.90 421.77,467.11 418.32,470.11 C 414.86,473.12 393.50,497.83 390.26,501.51 C 387.02,505.19 380.36,512.67 379.46,514.25 C 378.56,515.83 379.23,519.80 379.46,520.51 C 379.69,521.22 381.69,522.62 382.19,522.78 C 382.69,522.94 384.49,522.19 385.48,522.41 C 386.46,522.63 391.44,524.98 393.98,525.40 C 396.52,525.83 412.22,527.09 415.97,527.50 C 419.73,527.91 435.30,529.72 439.02,530.33 C 442.74,530.94 456.90,534.42 460.61,534.81 C 464.32,535.20 479.23,535.05 483.51,535.01 C 487.78,534.97 505.46,534.08 511.92,534.34 C 518.37,534.60 553.44,537.88 560.96,538.12 C 568.49,538.36 595.88,537.42 602.24,537.25 C 608.61,537.08 630.80,536.17 637.32,536.11 C 643.84,536.05 673.02,536.31 680.48,536.56 C 687.94,536.81 719.52,538.88 726.89,539.08 C 734.27,539.28 758.90,539.06 768.99,538.94 C 779.08,538.83 837.21,538.00 847.96,537.71 C 858.72,537.43 892.41,536.59 898.00,535.57 C 903.58,534.54 913.09,527.55 915.02,525.41 C 916.94,523.27 920.53,512.12 921.09,509.87 C 921.65,507.63 921.75,500.91 921.73,498.46 C 921.72,496.01 921.23,483.16 920.94,480.47 C 920.65,477.78 919.34,468.89 918.29,466.17 C 917.24,463.46 910.69,451.47 908.34,447.88 C 905.99,444.28 893.70,426.67 890.06,423.06 C 886.42,419.46 868.77,406.93 864.67,404.63 C 860.56,402.33 845.53,397.18 840.81,395.46 C 836.10,393.75 812.36,385.61 808.07,384.05 C 803.79,382.49 791.91,378.06 789.36,376.75 C 786.80,375.44 779.63,370.10 777.41,368.34 C 775.18,366.57 764.34,357.90 762.62,355.53 C 760.90,353.16 757.80,343.03 756.79,339.90 C 755.78,336.78 751.15,321.77 750.54,318.05 C 749.92,314.34 749.45,298.80 749.39,295.28 C 749.34,291.75 747.15,284.51 749.91,275.73 C 752.66,266.95 777.66,198.96 782.46,189.91 C 787.26,180.86 803.90,170.12 807.48,167.09 C 811.05,164.06 822.56,154.68 825.40,153.59 C 828.24,152.51 839.06,153.28 841.55,154.07 C 844.04,154.85 853.52,161.05 855.29,163.01 C 857.05,164.97 859.96,173.80 862.71,177.60 C 865.46,181.40 880.89,197.20 888.28,208.60 C 895.66,219.99 941.61,298.45 951.34,314.32 C 961.08,330.19 996.34,384.05 1005.07,399.00 C 1013.80,413.95 1047.67,479.57 1056.05,493.73 C 1064.43,507.89 1098.13,557.34 1105.61,568.94 C 1113.09,580.55 1142.23,626.52 1145.80,633.00 C 1149.36,639.49 1148.68,644.92 1148.41,646.78 C 1148.13,648.63 1144.12,653.95 1142.54,655.29 C 1140.95,656.62 1132.22,660.94 1129.39,662.84 C 1126.57,664.75 1112.68,676.70 1108.64,678.18 C 1104.60,679.67 1092.27,680.47 1080.94,680.69 C 1069.61,680.90 997.45,680.38 972.67,680.75 C 947.89,681.12 806.12,684.85 783.58,685.14 C 761.03,685.42 720.22,684.52 702.13,684.14 C 684.05,683.77 586.88,681.03 566.55,680.64 C 546.21,680.24 471.75,679.35 458.12,679.41 C 444.49,679.46 410.31,681.03 402.95,681.29 C 395.59,681.55 372.80,682.55 369.82,682.52 C 366.84,682.49 369.64,681.17 367.22,680.88 C 364.80,680.59 345.11,679.15 340.77,679.06" fill="none" stroke="#ff4d4f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <g id="car">
+        <rect x="-14" y="-7" width="28" height="14" rx="3" fill="#7dd3fc" stroke="#0b0d10" />
+        <circle cx="-8" cy="-7" r="2"/><circle cx="8" cy="-7" r="2"/><circle cx="-8" cy="7" r="2"/><circle cx="8" cy="7" r="2"/>
+      </g>
+    </svg>
+  </div>
+</div>
+
+<script>
+const path = document.getElementById('track-path');
+const car  = document.getElementById('car');
+const svg  = document.getElementById('svg');
+const bg   = document.getElementById('bg');
+const lapEl= document.getElementById('lap');
+const lapT = document.getElementById('lapT');
+const lenEl= document.getElementById('len');
+
+let running = true, raf=null;
+let s=0, t0=0, lap=0, tLap=0;
+
+function getClosedD(){
+  const d = path.getAttribute('d') || '';
+  if(!document.getElementById('closed').checked) return d;
+  const trimmed = d.trim();
+  return /Z\\s*$/i.test(trimmed) ? trimmed : (trimmed + ' Z');
+}
+
+function start(){
+  cancelAnimationFrame(raf);
+  const L = (path.setAttribute('d', getClosedD()), path).getTotalLength();
+  lenEl.textContent = L.toFixed(1);
+  function step(ts){
+    if(!t0) t0=ts;
+    const dt=(ts-t0)/1000; t0=ts; tLap+=dt;
+    const look = 6;
+    const vmaxBase = Number(document.getElementById('vmax').value);
+    const kV = Number(document.getElementById('kv').value);
+    const p  = path.getPointAtLength(s);
+    const p2 = path.getPointAtLength((s+look)%L);
+    const p0 = path.getPointAtLength((s+L-look)%L);
+    const a1 = Math.atan2(p2.y-p.y, p2.x-p.x);
+    const a0 = Math.atan2(p.y-p0.y, p.x-p0.x);
+    let dth = a1-a0; while(dth>Math.PI) dth-=2*Math.PI; while(dth<-Math.PI) dth+=2*Math.PI;
+    const kappa = Math.abs(dth)/(2*look+1e-6);
+    const vmax = Math.max(140, vmaxBase/(1+kV*kappa));
+    const sPrev = s;
+    s = (s + vmax*dt) % L;
+    if(s < sPrev){ lap++; lapEl.textContent = lap; lapT.textContent = tLap.toFixed(2); tLap=0; }
+    const p1 = path.getPointAtLength(s);
+    const dir= path.getPointAtLength((s+1)%L);
+    const ang= Math.atan2(dir.y-p1.y, dir.x-p1.x)*180/Math.PI;
+    car.setAttribute('transform', `translate(${p1.x.toFixed(2)},${p1.y.toFixed(2)}) rotate(${ang.toFixed(2)})`);
+    if(running) raf=requestAnimationFrame(step);
+  }
+  raf=requestAnimationFrame(step);
+}
+
+document.getElementById('toggle').onclick=()=>{ running=!running; document.getElementById('toggle').textContent=running?'暂停':'继续'; if(running){ t0=0; start(); } };
+document.getElementById('apply').onclick=()=>{
+  const w = Number(document.getElementById('w').value)||1200;
+  const h = Number(document.getElementById('h').value)||800;
+  svg.setAttribute('width', w); svg.setAttribute('height', h);
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  bg.style.width=w+'px'; bg.style.height=h+'px';
+  const url=document.getElementById('bgUrl').value.trim(); bg.style.backgroundImage=url?`url('${url}')`:'';
+  s=0; lap=0; tLap=0; lapEl.textContent='0'; lapT.textContent='0.00'; t0=0; start();
+};
+document.getElementById('export').onclick=()=>{
+  const d = path.getAttribute('d') || '';
+  const snippet = `<!-- centerline -->\\n<path id=\"track-path\" d=\"${d}\" fill=\"none\" stroke=\"#ff0000\" stroke-width=\"3\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/>`;
+  navigator.clipboard.writeText(snippet).then(()=> alert('已复制导出 path 到剪贴板'));
+};
+document.getElementById('vmax').oninput=()=> document.getElementById('vmaxv').textContent=document.getElementById('vmax').value;
+document.getElementById('kv').oninput=()=> document.getElementById('kvv').textContent=document.getElementById('kv').value;
+start();
+</script>
+</body>
+</html>

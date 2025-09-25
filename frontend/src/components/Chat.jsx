@@ -426,44 +426,95 @@ function Chat({ character, onBack, token }) {
         </Toolbar>
       </AppBar>
 
-      <Box sx={{ flexGrow: 1, overflow: 'auto', p: 1 }}>
-        <List>
+      {/* 现代化聊天区域 */}
+      <Box sx={{ 
+        flexGrow: 1, 
+        overflow: 'auto', 
+        px: { xs: 1, md: 2 },
+        py: 2,
+        background: 'rgba(0,0,0,0.1)'
+      }}>
+        <Box sx={{ maxWidth: 1000, mx: 'auto' }}>
           {messages.map((message, index) => (
-            <ListItem
+            <Box
               key={index}
               sx={{
+                display: 'flex',
                 justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start',
+                mb: 3,
                 alignItems: 'flex-start'
               }}
             >
+              {/* AI角色头像 */}
               {message.role === 'assistant' && (
-                <ListItemAvatar>
-                  <Avatar>{character.avatar}</Avatar>
-                </ListItemAvatar>
+                <Avatar 
+                  sx={{ 
+                    mr: 2,
+                    width: 45,
+                    height: 45,
+                    bgcolor: 'rgba(102, 126, 234, 0.2)',
+                    border: '2px solid rgba(102, 126, 234, 0.3)',
+                    fontSize: '1.2rem'
+                  }}
+                >
+                  {character.avatar}
+                </Avatar>
               )}
               
-                <Paper
-                elevation={1}
+              {/* 消息气泡 */}
+              <Paper
+                elevation={0}
                 sx={{
-                  p: 2,
-                  maxWidth: '70%',
-                  backgroundColor: message.role === 'user' ? 'primary.main' : 'grey.100',
-                  color: message.role === 'user' ? 'white' : 'text.primary',
-                  ml: message.role === 'user' ? 2 : 0,
-                  mr: message.role === 'assistant' ? 2 : 0,
-                  position: 'relative'
+                  p: 3,
+                  maxWidth: '75%',
+                  minWidth: 120,
+                  background: message.role === 'user' 
+                    ? 'linear-gradient(135deg, #667eea, #764ba2)'
+                    : 'rgba(255,255,255,0.1)',
+                  backdropFilter: 'blur(20px)',
+                  border: message.role === 'user'
+                    ? '1px solid rgba(102, 126, 234, 0.3)'
+                    : '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: message.role === 'user' 
+                    ? '20px 20px 5px 20px'
+                    : '20px 20px 20px 5px',
+                  color: 'white',
+                  position: 'relative',
+                  boxShadow: message.role === 'user'
+                    ? '0 8px 25px rgba(102, 126, 234, 0.3)'
+                    : '0 8px 25px rgba(0,0,0,0.2)'
                 }}
               >
-                <Typography variant="body1">
+                <Typography 
+                  variant="body1"
+                  sx={{
+                    lineHeight: 1.6,
+                    fontSize: '1rem',
+                    fontWeight: 400
+                  }}
+                >
                   {message.content}
                 </Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1 }}>
+                
+                {/* 消息元信息 */}
+                <Box sx={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  mt: 2,
+                  pt: 2,
+                  borderTop: '1px solid rgba(255,255,255,0.1)'
+                }}>
                   <Typography 
                     variant="caption" 
-                    sx={{ opacity: 0.7 }}
+                    sx={{ 
+                      opacity: 0.7,
+                      fontSize: '0.75rem'
+                    }}
                   >
                     {new Date(message.timestamp).toLocaleTimeString()}
                   </Typography>
+                  
                   {message.role === 'assistant' && (
                     <IconButton
                       size="small"
@@ -476,9 +527,14 @@ function Chat({ character, onBack, token }) {
                         }
                       }}
                       sx={{ 
-                        ml: 1,
-                        opacity: 0.7,
-                        '&:hover': { opacity: 1 },
+                        bgcolor: 'rgba(255,255,255,0.1)',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        width: 32,
+                        height: 32,
+                        '&:hover': { 
+                          bgcolor: 'rgba(255,255,255,0.2)',
+                          transform: 'scale(1.1)'
+                        },
                         animation: isSpeaking ? 'pulse 1s infinite' : 'none'
                       }}
                     >
@@ -498,121 +554,229 @@ function Chat({ character, onBack, token }) {
                 </Box>
               </Paper>
 
+              {/* 用户头像 */}
               {message.role === 'user' && (
-                <ListItemAvatar sx={{ ml: 1 }}>
-                  <Avatar>
-                    <Person />
-                  </Avatar>
-                </ListItemAvatar>
+                <Avatar 
+                  sx={{ 
+                    ml: 2,
+                    width: 45,
+                    height: 45,
+                    bgcolor: 'rgba(255,255,255,0.1)',
+                    border: '2px solid rgba(255,255,255,0.2)'
+                  }}
+                >
+                  <Person />
+                </Avatar>
               )}
-            </ListItem>
+            </Box>
           ))}
+          
+          {/* 加载状态 */}
           {loading && (
-            <ListItem>
-              <ListItemAvatar>
-                <Avatar>{character.avatar}</Avatar>
-              </ListItemAvatar>
-              <ListItemText 
-                primary={
-                  <Paper elevation={1} sx={{ p: 2, backgroundColor: 'grey.100' }}>
-                    <Typography>正在思考中...</Typography>
-                  </Paper>
-                }
-              />
-            </ListItem>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 3 }}>
+              <Avatar 
+                sx={{ 
+                  mr: 2,
+                  width: 45,
+                  height: 45,
+                  bgcolor: 'rgba(102, 126, 234, 0.2)',
+                  border: '2px solid rgba(102, 126, 234, 0.3)'
+                }}
+              >
+                {character.avatar}
+              </Avatar>
+              <Paper
+                elevation={0}
+                sx={{
+                  p: 3,
+                  background: 'rgba(255,255,255,0.1)',
+                  backdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: '20px 20px 20px 5px',
+                  color: 'white'
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Typography>正在思考中</Typography>
+                  {[0, 1, 2].map((i) => (
+                    <Box
+                      key={i}
+                      sx={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        bgcolor: '#667eea',
+                        animation: `thinking 1.4s ease-in-out infinite`,
+                        animationDelay: `${i * 0.2}s`,
+                        '@keyframes thinking': {
+                          '0%, 80%, 100%': { transform: 'scale(0)' },
+                          '40%': { transform: 'scale(1)' }
+                        }
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Paper>
+            </Box>
           )}
-        </List>
+        </Box>
         <div ref={messagesEndRef} />
       </Box>
 
-      <Divider />
-
-      <Box sx={{ p: 2 }}>
-        {/* 语音状态指示器 */}
-        {isListening && (
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            justifyContent: 'center',
-            mb: 2,
-            p: 1,
-            bgcolor: 'rgba(244, 67, 54, 0.1)',
-            borderRadius: 2,
-            border: '1px solid rgba(244, 67, 54, 0.3)'
-          }}>
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center',
-              gap: 1
-            }}>
-              <Mic sx={{ color: '#f44336', animation: 'pulse 1s infinite' }} />
-              <Typography variant="body2" sx={{ color: '#f44336' }}>
-                正在听取语音输入...
-              </Typography>
-              <Box sx={{ display: 'flex', gap: 0.5 }}>
-                {[1, 2, 3].map((i) => (
-                  <Box
-                    key={i}
-                    sx={{
-                      width: 4,
-                      height: 20,
-                      bgcolor: '#f44336',
-                      borderRadius: 2,
-                      animation: `wave 1.5s ease-in-out infinite`,
-                      animationDelay: `${i * 0.1}s`,
-                      '@keyframes wave': {
-                        '0%, 40%, 100%': { transform: 'scaleY(0.4)' },
-                        '20%': { transform: 'scaleY(1)' }
-                      }
-                    }}
-                  />
-                ))}
+      {/* 现代化输入区域 */}
+      <Box sx={{ 
+        background: 'rgba(10,10,10,0.95)',
+        backdropFilter: 'blur(20px)',
+        borderTop: '1px solid rgba(255,255,255,0.1)',
+        p: { xs: 2, md: 3 }
+      }}>
+        <Box sx={{ maxWidth: 1000, mx: 'auto' }}>
+          {/* 语音状态指示器 */}
+          {isListening && (
+            <Paper
+              elevation={0}
+              sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                mb: 2,
+                p: 2,
+                background: 'rgba(244, 67, 54, 0.1)',
+                backdropFilter: 'blur(15px)',
+                border: '1px solid rgba(244, 67, 54, 0.3)',
+                borderRadius: 3
+              }}
+            >
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center',
+                gap: 2
+              }}>
+                <Mic sx={{ color: '#f44336' }} />
+                <Typography variant="body2" sx={{ color: '#f44336', fontWeight: 500 }}>
+                  正在听取语音输入...
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 0.5 }}>
+                  {[1, 2, 3].map((i) => (
+                    <Box
+                      key={i}
+                      sx={{
+                        width: 4,
+                        height: 16,
+                        bgcolor: '#f44336',
+                        borderRadius: 2,
+                        animation: `wave 1.2s ease-in-out infinite`,
+                        animationDelay: `${i * 0.1}s`,
+                        '@keyframes wave': {
+                          '0%, 40%, 100%': { transform: 'scaleY(0.3)' },
+                          '20%': { transform: 'scaleY(1)' }
+                        }
+                      }}
+                    />
+                  ))}
+                </Box>
               </Box>
-            </Box>
-          </Box>
-        )}
-        
-        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-end' }}>
-          <TextField
-            fullWidth
-            multiline
-            maxRows={3}
-            placeholder={isListening ? "正在监听语音..." : "输入消息..."}
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            onKeyPress={handleKeyPress}
-            disabled={loading || isListening}
-            sx={{
-              '& .MuiOutlinedInput-root': {
-                '&.Mui-focused fieldset': {
-                  borderColor: isListening ? '#f44336' : undefined
+            </Paper>
+          )}
+          
+          {/* 输入框区域 */}
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-end' }}>
+            <TextField
+              fullWidth
+              multiline
+              maxRows={4}
+              placeholder={isListening ? "正在监听语音..." : "输入你的消息..."}
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyPress={handleKeyPress}
+              disabled={loading || isListening}
+              sx={{
+                '& .MuiOutlinedInput-root': {
+                  bgcolor: 'rgba(255,255,255,0.1)',
+                  backdropFilter: 'blur(15px)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: 3,
+                  '& fieldset': { border: 'none' },
+                  '&:hover': {
+                    bgcolor: 'rgba(255,255,255,0.15)',
+                  },
+                  '&.Mui-focused': {
+                    bgcolor: 'rgba(255,255,255,0.2)',
+                    border: isListening 
+                      ? '2px solid #f44336' 
+                      : '2px solid #667eea',
+                    boxShadow: isListening
+                      ? '0 0 20px rgba(244, 67, 54, 0.3)'
+                      : '0 0 20px rgba(102, 126, 234, 0.3)'
+                  }
+                },
+                '& input, & textarea': { 
+                  color: 'white',
+                  fontSize: '1rem',
+                  '&::placeholder': {
+                    color: 'rgba(255,255,255,0.5)'
+                  }
                 }
-              }
-            }}
-          />
-          <Fab
-            size="small"
-            color={isListening ? "secondary" : "default"}
-            onClick={toggleListening}
-            sx={{ 
-              mr: 1,
-              animation: isListening ? 'pulse 0.8s infinite' : 'none',
-              '@keyframes pulse': {
-                '0%': { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(244, 67, 54, 0.7)' },
-                '70%': { transform: 'scale(1.05)', boxShadow: '0 0 0 10px rgba(244, 67, 54, 0)' },
-                '100%': { transform: 'scale(1)', boxShadow: '0 0 0 0 rgba(244, 67, 54, 0)' }
-              }
-            }}
-          >
-            {isListening ? <MicOff /> : <Mic />}
-          </Fab>
-          <Fab
-            color="primary"
-            onClick={handleSendMessage}
-            disabled={loading || !inputMessage.trim()}
-          >
-            <Send />
-          </Fab>
+              }}
+            />
+            
+            {/* 语音按钮 */}
+            <IconButton
+              onClick={toggleListening}
+              disabled={loading}
+              sx={{ 
+                width: 56,
+                height: 56,
+                bgcolor: isListening ? 'rgba(244, 67, 54, 0.2)' : 'rgba(255,255,255,0.1)',
+                backdropFilter: 'blur(15px)',
+                border: isListening 
+                  ? '2px solid #f44336' 
+                  : '1px solid rgba(255,255,255,0.2)',
+                color: isListening ? '#f44336' : 'rgba(255,255,255,0.8)',
+                animation: isListening ? 'pulse 1s infinite' : 'none',
+                '&:hover': {
+                  bgcolor: isListening ? 'rgba(244, 67, 54, 0.3)' : 'rgba(255,255,255,0.2)',
+                  transform: 'scale(1.05)'
+                },
+                '&:disabled': {
+                  opacity: 0.5
+                },
+                '@keyframes pulse': {
+                  '0%': { transform: 'scale(1)' },
+                  '50%': { transform: 'scale(1.05)' },
+                  '100%': { transform: 'scale(1)' }
+                }
+              }}
+            >
+              {isListening ? <MicOff /> : <Mic />}
+            </IconButton>
+            
+            {/* 发送按钮 */}
+            <IconButton
+              onClick={handleSendMessage}
+              disabled={loading || !inputMessage.trim()}
+              sx={{
+                width: 56,
+                height: 56,
+                bgcolor: '#667eea',
+                color: 'white',
+                border: '1px solid rgba(102, 126, 234, 0.3)',
+                boxShadow: '0 8px 20px rgba(102, 126, 234, 0.4)',
+                '&:hover': {
+                  bgcolor: '#5a6fd8',
+                  transform: 'scale(1.05)',
+                  boxShadow: '0 12px 30px rgba(102, 126, 234, 0.6)'
+                },
+                '&:disabled': {
+                  bgcolor: 'rgba(255,255,255,0.1)',
+                  color: 'rgba(255,255,255,0.3)',
+                  boxShadow: 'none'
+                }
+              }}
+            >
+              <Send />
+            </IconButton>
+          </Box>
         </Box>
       </Box>
     </Box>

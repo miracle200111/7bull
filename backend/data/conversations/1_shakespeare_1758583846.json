@@ -1,0 +1,17 @@
+{
+  "user": "1",
+  "character_id": "shakespeare",
+  "messages": [
+    {
+      "role": "user",
+      "content": "ni",
+      "timestamp": "2025-09-23T09:30:51.506745",
+      "skill_used": null
+    },
+    {
+      "role": "assistant",
+      "content": "What ho, fair stranger? Thy word \"ni\" doth whisper like a fleeting zephyr in the garden of discourse—perchance a greeting half-spoken, or a riddle yet to unfold? Pray, reveal thy intent: seekest thou verses of love, counsel for a tale untold, or musings on the human heart? I stand ready, quill in hand, to weave words with thee.",
+      "timestamp": "2025-09-23T09:30:51.506753"
+    }
+  ]
+}

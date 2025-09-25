@@ -33,9 +33,9 @@ import {
 } from '@mui/icons-material';
 import axios from 'axios';
 import { CONTAINER_SIZES, ANIMATIONS } from '../theme';
-import CharacterCard from './CharacterCard';
-import CarouselPlayer from './CarouselPlayer';
-import CategoryCarousel from './CategoryCarousel';
+import CharacterCard from './CharacterCard.jsx';
+import CarouselPlayer from './CarouselPlayer.jsx';
+import CategoryCarousel from './CategoryCarousel.jsx';
 
 // 图片导入函数
 const getImagePath = (path) => {
