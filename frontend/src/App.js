@@ -6,6 +6,7 @@ import Login from './components/Login.jsx';
 import F1Dashboard from './components/F1Dashboard.jsx';
 import Chat from './components/Chat.jsx';
 import RaceSimulation from './components/RaceSimulation.jsx';
+import F1RaceSimulator from './components/F1RaceSimulator.jsx';
 import { theme } from './theme';
 import './App.css';
 
@@ -112,7 +113,7 @@ function App() {
           />
         )}
         {currentView === 'race' && selectedTeam && selectedRace && (
-          <RaceSimulation
+          <F1RaceSimulator
             selectedTeam={selectedTeam}
             selectedRace={selectedRace}
             onBack={handleBackToDashboard}

@@ -11,6 +11,7 @@ from passlib.context import CryptContext
 import openai
 from dotenv import load_dotenv
 from race_strategy import f1_ai
+from llm_endpoints import router as llm_router
 
 load_dotenv()
 
@@ -24,6 +25,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 注册LLM端点
+app.include_router(llm_router)
 
 # Security
 security = HTTPBearer()

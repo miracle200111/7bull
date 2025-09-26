@@ -9,7 +9,11 @@ import {
   LinearProgress,
   Divider,
   Fab,
-  Collapse
+  Collapse,
+  TextField,
+  InputAdornment,
+  Alert,
+  Snackbar
 } from '@mui/material';
 import {
   ArrowBack,
@@ -19,12 +23,18 @@ import {
   VolumeOff,
   Settings,
   ExpandMore,
-  ExpandLess
+  ExpandLess,
+  Send,
+  Mic,
+  Warning,
+  Flag
 } from '@mui/icons-material';
 import { F1_TEAMS, F1_RACES_2024, RACE_PHASES } from '../data/f1Data';
 import BahrainTrack from './BahrainTrack.jsx';
 import PathTrack from './PathTrack.jsx';
 import StrategyPrep from './StrategyPrep.jsx';
+import LiveRanking from './LiveRanking.jsx';
+import RealTimeChat from './RealTimeChat.jsx';
 
 const RaceSimulation = ({
   selectedTeam,
@@ -52,6 +62,10 @@ const RaceSimulation = ({
   const [weatherData, setWeatherData] = useState({});
   const [userInput, setUserInput] = useState('');
   const [isAIThinking, setIsAIThinking] = useState(false);
+  const [eventAlert, setEventAlert] = useState(null);
+  const [realTimeRanking, setRealTimeRanking] = useState([]);
+  const [selectedDriverForChat, setSelectedDriverForChat] = useState(null);
+  const [showRealTimeChat, setShowRealTimeChat] = useState(false);
 
   const team = F1_TEAMS[selectedTeam] || F1_TEAMS.red_bull; // 默认值
   const race = F1_RACES_2024[selectedRace] || F1_RACES_2024.monaco; // 默认值
@@ -305,7 +319,35 @@ const RaceSimulation = ({
       fuelLoad: prepData.fuelLoad
     });
     setShowStrategyPrep(false);
-    setTrackPhase('formation');
+    setTrackPhase('formation'); // 编队圈，车辆静止等待
+    
+    // 添加策略完成消息
+    setTeamCommunications([{
+      id: Date.now(),
+      sender: '比赛控制',
+      message: '策略设置完成，车辆已就位。等待比赛开始信号。',
+      timestamp: new Date(),
+      type: 'system'
+    }]);
+  };
+
+  // 开始比赛（从formation到start）
+  const initiateRaceStart = () => {
+    setTrackPhase('start');
+    setIsRaceActive(true);
+    setTeamCommunications(prev => [...prev, {
+      id: Date.now(),
+      sender: '比赛控制',
+      message: '🚦 比赛开始！五盏红灯熄灭！',
+      timestamp: new Date(),
+      type: 'race_control'
+    }]);
+    
+    // 3秒后切换到正赛阶段
+    setTimeout(() => {
+      setTrackPhase('race');
+      setCurrentPhase('race_start');
+    }, 3000);
   };
 
   // 定时LLM策略更新
@@ -380,12 +422,15 @@ const RaceSimulation = ({
         ];
         
         const event = events[Math.floor(Math.random() * events.length)];
-        setRaceEvents(prev => [...prev, {
+        const newEvent = {
           id: Date.now(),
           lap: currentLap,
           ...event,
           timestamp: new Date()
-        }]);
+        };
+        
+        setRaceEvents(prev => [...prev, newEvent]);
+        setEventAlert(newEvent);
         
         if (event.flag !== 'green') {
           setRaceFlag(event.flag);
@@ -538,10 +583,31 @@ const RaceSimulation = ({
         />
       </Paper>
 
+      {/* 左侧实时排位 */}
+      {!showStrategyPrep && (
+        <LiveRanking
+          classification={liveClassification}
+          selectedTeamKey={team.id}
+          currentLap={Math.floor(raceProgress * (race.laps || 57) / 100)}
+          totalLaps={race.laps || 57}
+          raceEvents={raceEvents}
+          onDriverSelect={(driver) => {
+            // 设置选中的车手并打开实时对话
+            setSelectedDriverForChat(driver);
+            setShowRealTimeChat(true);
+          }}
+        />
+      )}
+
       {/* 全屏赛道视图 - 主要内容 */}
-      <Box sx={{ position: 'absolute', top: 80, left: 0, right: 0, bottom: showLeaderboard ? 300 : 60, transition: 'bottom 0.3s ease' }}>
-        {/* 使用路径动画演示组件（可切换为 BahrainTrack 做更丰富模拟）*/}
-        {/* 传入对齐参数：先给出保守默认，后续可在UI暴露调参 */}
+      <Box sx={{ 
+        position: 'absolute', 
+        top: 80, 
+        left: showStrategyPrep ? 0 : 360, // 为左侧排位留出空间
+        right: showCommunications ? 320 : 20, // 为右侧通讯留出空间
+        bottom: 120, // 为底部控制面板留出空间
+        transition: 'all 0.3s ease' 
+      }}>
         <PathTrack
           backgroundUrl={undefined}
           offsetX={-105}
@@ -555,270 +621,168 @@ const RaceSimulation = ({
           phase={trackPhase}
           raceFlag={raceFlag}
           active={isRaceActive && !showStrategyPrep}
+          raceStarted={isRaceActive && !showStrategyPrep && trackPhase !== 'formation'}
+          currentLap={Math.floor(raceProgress * (race.laps || 57) / 100)}
           onTelemetry={(rows) => setLiveClassification(rows)}
         />
       </Box>
 
-      {/* 右侧可折叠通讯面板 */}
-      <Collapse in={showCommunications} orientation="horizontal">
-        <Paper
+      {/* 实时LLM对话系统 */}
+      {showRealTimeChat && selectedDriverForChat && (
+        <RealTimeChat
+          selectedDriver={selectedDriverForChat}
+          teamData={team}
+          raceContext={{
+            currentPosition: liveClassification.find(c => c.id === selectedDriverForChat.id)?.position || 10,
+            currentLap: Math.floor(raceProgress * (race.laps || 57) / 100),
+            totalLaps: race.laps || 57,
+            phase: currentPhase,
+            weather: weatherData,
+            raceFlag,
+            gap: liveClassification.find(c => c.id === selectedDriverForChat.id)?.gapSeconds || 0,
+            tyreCondition: strategyByCarId[selectedDriverForChat.id]?.currentTyre || 'medium',
+            fuelLevel: 'normal',
+            nearbyDrivers: liveClassification.slice(0, 5)
+          }}
+          onMessageSent={(message) => {
+            setTeamCommunications(prev => [...prev, {
+              id: Date.now(),
+              sender: message.sender,
+              message: message.message,
+              timestamp: new Date(),
+              type: message.type,
+              impact: message.impact
+            }]);
+          }}
+          onStrategyImpact={(driverId, impact) => {
+            // LLM对话影响策略
+            setStrategyByCarId(prev => ({
+              ...prev,
+              [driverId]: {
+                ...prev[driverId],
+                paceK: (prev[driverId]?.paceK || 1.0) * (impact.paceMultiplier || 1.0)
+              }
+            }));
+          }}
+        />
+      )}
+
+      {/* 关闭对话按钮 */}
+      {showRealTimeChat && (
+        <IconButton
+          onClick={() => setShowRealTimeChat(false)}
           sx={{
             position: 'absolute',
-            top: 80,
-            right: 0,
-            width: 300,
-            height: showLeaderboard ? 'calc(100vh - 380px)' : 'calc(100vh - 140px)',
-            background: 'rgba(0,0,0,0.9)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: 0,
-            zIndex: 900,
-            overflow: 'hidden'
+            top: 90,
+            right: 30,
+            bgcolor: 'rgba(244,67,54,0.8)',
+            color: 'white',
+            zIndex: 1001,
+            '&:hover': {
+              bgcolor: 'rgba(244,67,54,1)'
+            }
           }}
         >
-          <Box sx={{ p: 2, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-            <Typography variant="h6" sx={{ color: 'white' }}>
-              📡 赛道通讯
+          ✕
+        </IconButton>
+      )}
+
+      {/* 底部快速控制面板 - 简化版 */}
+      {!showStrategyPrep && (
+        <Paper sx={{
+          position: 'absolute',
+          bottom: 20,
+          left: showStrategyPrep ? 20 : 380,
+          right: 20,
+          height: 80,
+          background: 'rgba(0,0,0,0.9)',
+          backdropFilter: 'blur(20px)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 2,
+          zIndex: 800,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 2,
+          p: 2,
+          transition: 'left 0.3s ease'
+        }}>
+          {/* 比赛状态 */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body2" sx={{ color: 'white', fontWeight: 600 }}>
+              阶段: {trackPhase}
             </Typography>
+            {raceFlag !== 'green' && (
+              <Chip
+                label={raceFlag === 'safety' ? '安全车' : '黄旗'}
+                size="small"
+                sx={{
+                  bgcolor: raceFlag === 'safety' ? 'rgba(244,67,54,0.3)' : 'rgba(255,193,7,0.3)',
+                  color: raceFlag === 'safety' ? '#F44336' : '#FFC107'
+                }}
+              />
+            )}
           </Box>
 
-          <Box sx={{ p: 2, height: 'calc(100% - 60px)', overflow: 'auto' }}>
-            {teamCommunications.map((comm) => (
-              <Box
-                key={comm.id}
-                sx={{
-                  mb: 2,
-                  p: 2,
-                  borderRadius: 2,
-                  background: comm.type === 'instruction'
-                    ? 'rgba(255,165,0,0.1)'
-                    : 'rgba(76,175,80,0.1)',
-                  border: comm.type === 'instruction'
-                    ? '1px solid rgba(255,165,0,0.3)'
-                    : '1px solid rgba(76,175,80,0.3)'
-                }}
-              >
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: comm.type === 'instruction' ? '#FFA500' : '#4CAF50',
-                    fontWeight: 600,
-                    mb: 0.5
-                  }}
-                >
-                  {comm.sender}
-                </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{ color: 'white', mb: 0.5 }}
-                >
-                  {comm.message}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  sx={{ color: 'rgba(255,255,255,0.5)' }}
-                >
-                  {comm.timestamp.toLocaleTimeString()}
-                </Typography>
-              </Box>
-            ))}
+          <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.2)' }} />
 
-            {otherTeamChatter.slice(-10).map((chatter) => (
-              <Box
-                key={chatter.id}
+          {/* 快速指令 */}
+          <Box sx={{ display: 'flex', gap: 1, flex: 1 }}>
+            {['进站', '推进', '防守', '节油'].map((instruction) => (
+              <Button
+                key={instruction}
+                size="small"
+                variant="outlined"
+                onClick={() => handleUserInput(`指令: ${instruction}`)}
                 sx={{
-                  mb: 2,
-                  p: 2,
-                  borderRadius: 2,
-                  background: 'rgba(255,255,255,0.05)',
-                  border: `1px solid ${chatter.teamColor}40`
+                  color: 'white',
+                  borderColor: 'rgba(255,255,255,0.3)',
+                  fontSize: '0.75rem',
+                  minWidth: 60,
+                  '&:hover': {
+                    bgcolor: 'rgba(255,255,255,0.1)',
+                    borderColor: team.color
+                  }
                 }}
               >
-                <Typography
-                  variant="body2"
-                  sx={{
-                    color: chatter.teamColor,
-                    fontWeight: 600,
-                    mb: 0.5
-                  }}
-                >
-                  {chatter.team}
+                {instruction}
+              </Button>
+            ))}
+          </Box>
+
+          <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.2)' }} />
+
+          {/* 我的车队车手 */}
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {team.drivers.map((driver, index) => (
+              <Box
+                key={driver.id}
+                onClick={() => onDriverChat(driver.id)}
+                sx={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1,
+                  px: 2,
+                  py: 1,
+                  borderRadius: 2,
+                  background: 'rgba(255,255,255,0.1)',
+                  border: `1px solid ${team.color}`,
+                  cursor: 'pointer',
+                  '&:hover': {
+                    background: 'rgba(255,255,255,0.2)'
+                  }
+                }}
+              >
+                <Typography variant="body2" sx={{ color: 'white', fontWeight: 600 }}>
+                  #{driver.number}
                 </Typography>
-                <Typography
-                  variant="body2"
-                  sx={{ color: 'white', mb: 0.5 }}
-                >
-                  {chatter.message}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  sx={{ color: 'rgba(255,255,255,0.5)' }}
-                >
-                  {chatter.timestamp.toLocaleTimeString()}
+                <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
+                  {driver.name.split(' ')[1]}
                 </Typography>
               </Box>
             ))}
           </Box>
         </Paper>
-      </Collapse>
-
-      {/* 底部可折叠比赛信息面板 */}
-      <Collapse in={showLeaderboard}>
-        <Paper
-          sx={{
-            position: 'absolute',
-            bottom: 60,
-            left: 0,
-            right: 0,
-            height: 240,
-            background: 'rgba(0,0,0,0.95)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: 0,
-            zIndex: 800,
-            overflow: 'hidden'
-          }}
-        >
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 2, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-            <Typography variant="h6" sx={{ color: 'white' }}>
-              🏆 实时排位
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              {team.drivers.map((driver, index) => (
-                <Box
-                  key={driver.id}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                    px: 2,
-                    py: 1,
-                    borderRadius: 2,
-                    background: 'rgba(255,255,255,0.1)',
-                    border: `1px solid ${team.color}`,
-                    cursor: 'pointer',
-                    '&:hover': {
-                      background: 'rgba(255,255,255,0.2)'
-                    }
-                  }}
-                  onClick={() => onDriverChat(driver.id)}
-                >
-                  <Typography variant="body2" sx={{ color: 'white', fontWeight: 600 }}>
-                    #{driver.number}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                    {driver.name.split(' ')[1]}
-                  </Typography>
-                </Box>
-              ))}
-            </Box>
-          </Box>
-
-          <Box sx={{ p: 2, height: 'calc(100% - 60px)', overflow: 'auto' }}>
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              {/* 左侧排位 */}
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1 }}>
-                  车手排位
-                </Typography>
-                {teamCommunications.slice(-8).map((comm, index) => {
-                  const position = index + 1;
-                  const isInstruction = comm.type === 'instruction';
-
-                  return (
-                    <Box
-                      key={comm.id}
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 2,
-                        p: 1.5,
-                        mb: 1,
-                        borderRadius: 2,
-                        background: position <= 3
-                          ? 'rgba(255,215,0,0.1)'
-                          : 'rgba(255,255,255,0.05)',
-                        border: position <= 3
-                          ? '1px solid rgba(255,215,0,0.4)'
-                          : `1px solid rgba(255,255,255,0.1)`
-                      }}
-                    >
-                      <Typography
-                        sx={{
-                          color: position <= 3 ? '#FFD700' : 'white',
-                          fontWeight: 'bold',
-                          minWidth: 25
-                        }}
-                      >
-                        P{position}
-                      </Typography>
-                      <Box sx={{ flex: 1 }}>
-                        <Typography
-                          variant="body2"
-                          sx={{ color: 'white', fontWeight: 600 }}
-                        >
-                          {comm.sender}
-                        </Typography>
-                        <Typography
-                          variant="caption"
-                          sx={{
-                            color: isInstruction ? '#FFA500' : '#4CAF50',
-                            fontSize: '0.75rem'
-                          }}
-                        >
-                          {isInstruction ? '指令' : '回应'}
-                        </Typography>
-                      </Box>
-                      <Typography
-                        variant="caption"
-                        sx={{ color: 'rgba(255,255,255,0.6)' }}
-                      >
-                        {comm.timestamp.toLocaleTimeString('zh-CN', {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </Typography>
-                    </Box>
-                  );
-                })}
-              </Box>
-
-              {/* 右侧快速指令 */}
-              <Box sx={{ flex: 1 }}>
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1 }}>
-                  快速指令
-                </Typography>
-                {['进站', '推进', '防守', '超车', '节省燃油'].map((instruction) => (
-                  <Button
-                    key={instruction}
-                    fullWidth
-                    size="small"
-                    variant="outlined"
-                    onClick={() => {
-                      sendTeamInstruction(`指令: ${instruction}`);
-                      simulateDriverResponse(instruction);
-                    }}
-                    sx={{
-                      justifyContent: 'flex-start',
-                      color: 'white',
-                      border: '1px solid rgba(255,255,255,0.3)',
-                      fontSize: '0.75rem',
-                      py: 1,
-                      mb: 0.5,
-                      '&:hover': {
-                        bgcolor: 'rgba(255,255,255,0.1)',
-                        border: `1px solid ${team.color}`
-                      }
-                    }}
-                  >
-                    {instruction}
-                  </Button>
-                ))}
-              </Box>
-            </Box>
-          </Box>
-        </Paper>
-      </Collapse>
+      )}
 
       {/* 浮动控制按钮 */}
       <Fab
@@ -827,15 +791,23 @@ const RaceSimulation = ({
           position: 'absolute',
           bottom: 100,
           left: 20,
-          background: isRaceActive ? 'rgba(244,67,54,0.9)' : 'rgba(76,175,80,0.9)',
+          background: trackPhase === 'formation' 
+            ? 'rgba(76,175,80,0.9)' 
+            : isRaceActive 
+              ? 'rgba(244,67,54,0.9)' 
+              : 'rgba(76,175,80,0.9)',
           '&:hover': {
-            background: isRaceActive ? 'rgba(244,67,54,1)' : 'rgba(76,175,80,1)'
+            background: trackPhase === 'formation' 
+              ? 'rgba(76,175,80,1)' 
+              : isRaceActive 
+                ? 'rgba(244,67,54,1)' 
+                : 'rgba(76,175,80,1)'
           },
           zIndex: 1001
         }}
-        onClick={isRaceActive ? pauseRace : startRace}
+        onClick={trackPhase === 'formation' ? initiateRaceStart : (isRaceActive ? pauseRace : startRace)}
       >
-        {isRaceActive ? <Pause /> : <PlayArrow />}
+        {trackPhase === 'formation' ? <PlayArrow /> : (isRaceActive ? <Pause /> : <PlayArrow />)}
       </Fab>
 
       <Fab
@@ -856,6 +828,7 @@ const RaceSimulation = ({
         🔄
       </Fab>
 
+
       <Fab
         size="small"
         sx={{
@@ -869,184 +842,57 @@ const RaceSimulation = ({
           },
           zIndex: 1001
         }}
-        onClick={() => setShowLeaderboard(!showLeaderboard)}
-      >
-        {showLeaderboard ? <ExpandMore /> : <ExpandLess />}
-      </Fab>
-
-      <Fab
-        size="small"
-        sx={{
-          position: 'absolute',
-          bottom: 20,
-          left: 140,
-          background: 'rgba(255,255,255,0.2)',
-          color: 'white',
-          '&:hover': {
-            background: 'rgba(255,255,255,0.3)'
-          },
-          zIndex: 1001
-        }}
         onClick={() => setShowCommunications(!showCommunications)}
       >
         📡
       </Fab>
 
-      {/* 比赛控制面板切换按钮 */}
-      <Fab
-        size="small"
-        sx={{
-          position: 'absolute',
-          top: 100,
-          left: 20,
-          background: 'rgba(255,255,255,0.2)',
-          color: 'white',
-          '&:hover': {
-            background: 'rgba(255,255,255,0.3)'
-          },
-          zIndex: 1001
-        }}
-        onClick={() => setShowControls(!showControls)}
-      >
-        <Settings />
-      </Fab>
 
-      {/* 可折叠的比赛控制面板 */}
-      <Collapse in={showControls}>
-        <Paper
+      {/* 比赛事件提醒 */}
+      <Snackbar
+        open={!!eventAlert}
+        autoHideDuration={6000}
+        onClose={() => setEventAlert(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          severity={eventAlert?.type === 'safety_car' ? 'error' : 'warning'}
+          onClose={() => setEventAlert(null)}
           sx={{
-            position: 'absolute',
-            top: 160,
-            left: 20,
-            width: 280,
-            background: 'rgba(0,0,0,0.95)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255,255,255,0.1)',
-            borderRadius: 2,
-            zIndex: 1000,
-            p: 2
+            bgcolor: eventAlert?.type === 'safety_car' ? 'rgba(244,67,54,0.9)' : 'rgba(255,193,7,0.9)',
+            color: 'white',
+            '& .MuiAlert-icon': { color: 'white' }
           }}
         >
-          <Typography variant="h6" sx={{ color: 'white', mb: 2 }}>
-            🎮 比赛控制
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            第{eventAlert?.lap}圈: {eventAlert?.message}
           </Typography>
+        </Alert>
+      </Snackbar>
 
-          <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-            <Button
-              fullWidth
-              variant={isRaceActive ? 'contained' : 'outlined'}
-              color={isRaceActive ? 'error' : 'success'}
-              startIcon={isRaceActive ? <Pause /> : <PlayArrow />}
-              onClick={isRaceActive ? pauseRace : startRace}
-              sx={{ fontSize: '0.8rem' }}
-            >
-              {isRaceActive ? '暂停' : '开始'}
-            </Button>
-            <Button
-              fullWidth
-              variant="outlined"
-              onClick={resetRace}
-              sx={{
-                color: 'white',
-                borderColor: 'rgba(255,255,255,0.3)',
-                fontSize: '0.8rem'
-              }}
-            >
-              重置
-            </Button>
-          </Box>
-
-          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1 }}>
-            比赛阶段: {currentPhase && RACE_PHASES[currentPhase].name}
+      {/* 赛道旗语指示器 */}
+      {raceFlag !== 'green' && (
+        <Box sx={{
+          position: 'absolute',
+          top: 100,
+          right: 20,
+          background: raceFlag === 'safety' ? 'rgba(244,67,54,0.9)' : 'rgba(255,193,7,0.9)',
+          color: 'white',
+          px: 2,
+          py: 1,
+          borderRadius: 2,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          zIndex: 1001,
+          animation: 'pulse 1s infinite'
+        }}>
+          <Flag />
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            {raceFlag === 'safety' ? '安全车' : '黄旗'}
           </Typography>
-          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 1 }}>
-            进度: {Math.floor(raceProgress)}%
-          </Typography>
-          <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)', mb: 2 }}>
-            当前圈: {Math.floor(raceProgress * (race.laps || 57) / 100)}
-          </Typography>
-
-          <Divider sx={{ my: 1, borderColor: 'rgba(255,255,255,0.1)' }} />
-          <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, mb: 1 }}>
-            阶段控制
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-            {['formation','start','race'].map(p => (
-              <Button key={p} size="small" variant={trackPhase===p?'contained':'outlined'} onClick={() => setTrackPhase(p)} sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)' }}>
-                {p}
-              </Button>
-            ))}
-          </Box>
-
-          <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, mb: 1 }}>
-            策略模板
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
-            <Button size="small" variant="outlined" sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)' }}
-              onClick={() => {
-                setStrategyByCarId(prev => {
-                  const copy = { ...prev };
-                  Object.keys(copy).forEach(id => { copy[id] = { ...copy[id], plannedPitLaps: [20], pitSeconds: 2.3 }; });
-                  return copy;
-                });
-              }}
-            >一停</Button>
-            <Button size="small" variant="outlined" sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)' }}
-              onClick={() => {
-                setStrategyByCarId(prev => {
-                  const copy = { ...prev };
-                  Object.keys(copy).forEach(id => { copy[id] = { ...copy[id], plannedPitLaps: [15, 38], pitSeconds: 2.5 }; });
-                  return copy;
-                });
-              }}
-            >二停</Button>
-            <Button size="small" variant="outlined" sx={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)' }}
-              onClick={() => {
-                setStrategyByCarId(prev => {
-                  const copy = { ...prev };
-                  Object.keys(copy).forEach(id => { copy[id] = { ...copy[id], plannedPitLaps: [], pitSeconds: 0 }; });
-                  return copy;
-                });
-              }}
-            >不停</Button>
-          </Box>
-          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>模板应用至全场（演示），后续可按车定制。</Typography>
-
-          <Typography variant="body2" sx={{ color: 'white', fontWeight: 600, mb: 1 }}>
-            车队状态
-          </Typography>
-          {team.drivers.map((driver, index) => (
-            <Box
-              key={driver.id}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                p: 1,
-                mb: 1,
-                borderRadius: 1,
-                background: 'rgba(255,255,255,0.05)',
-                border: `1px solid ${team.color}40`,
-                cursor: 'pointer',
-                '&:hover': {
-                  background: 'rgba(255,255,255,0.1)'
-                }
-              }}
-              onClick={() => onDriverChat(driver.id)}
-            >
-              <Typography variant="body2" sx={{ color: team.color, fontWeight: 600 }}>
-                #{driver.number}
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'white', flex: 1 }}>
-                {driver.name}
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>
-                {driver.status || '正常'}
-              </Typography>
-            </Box>
-          ))}
-        </Paper>
-      </Collapse>
+        </Box>
+      )}
     </Box>
   );
 };
